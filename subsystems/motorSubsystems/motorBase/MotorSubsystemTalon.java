@@ -1,19 +1,15 @@
 package frc.DELib26.subsystems.motorSubsystems.motorBase;
 
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
-import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 import edu.wpi.first.units.measure.Current;
 import edu.wpi.first.units.measure.Voltage;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
-import frc.DELib26.motors.MotorConstants;
-import frc.DELib26.motors.MotorFactory;
 import frc.DELib26.motors.MotorIO;
 import frc.DELib26.motors.MotorIOInputsAutoLogged;
 import frc.DELib26.subsystems.motorSubsystems.motorBase.IOs.SimTalonFXIO;
-import frc.DELib26.subsystems.motorSubsystems.motorBase.IOs.TalonFXIO;
+import frc.DELib26.subsystems.motorSubsystems.motorBase.TalonFXIOFactory.MotorIOType;
 import frc.DELib26.subsystems.motorSubsystems.motorBase.mechanismSim.MechanismSim;
-import frc.DELib26.util.RunMode;
 import org.littletonrobotics.junction.Logger;
 
 import java.util.Arrays;
@@ -35,18 +31,27 @@ public class MotorSubsystemTalon extends SubsystemBase {
 
 	private final Optional<MechanismSim<?, ?, ?>> mechanismSim;
 
+
+	public MotorSubsystemTalon(MotorSubsystemConfiguration configuration, MotorIOType type) {
+		this(
+			configuration,
+			TalonFXIOFactory.buildMasterIO(configuration, type),
+			TalonFXIOFactory.buildFollowerIOs(configuration, type)
+		);
+	}
+
 	public MotorSubsystemTalon(MotorSubsystemConfiguration configuration) {
 		this(
 			configuration,
-			buildMasterIO(configuration),
-			buildFollowerIOs(configuration)
+			TalonFXIOFactory.getDefaultType()
 		);
 	}
 
 	public MotorSubsystemTalon(
-			MotorSubsystemConfiguration configuration,
-			MotorIO masterIO,
-			MotorIO[] followerIOs) {
+		MotorSubsystemConfiguration configuration,
+		MotorIO masterIO,
+		MotorIO[] followerIOs
+	) {
 		this.configuration = configuration;
 
 		this.masterIO = masterIO;
@@ -59,7 +64,7 @@ public class MotorSubsystemTalon extends SubsystemBase {
 			this.followerInputs[i] = new MotorIOInputsAutoLogged();
 		}
 
-		if (RunMode.isSim()) {
+		if (masterIO instanceof SimTalonFXIO && followerIOs instanceof SimTalonFXIO[]) {
 			// java does'nt like arr casting
 			SimTalonFXIO[] arr = new SimTalonFXIO[this.followerIOs.length];
 			for (int i = 0; i < this.followerIOs.length; i++) {
@@ -80,47 +85,6 @@ public class MotorSubsystemTalon extends SubsystemBase {
 		}
 
 		super.setName(this.configuration.subsystemName);
-	}
-
-	private static MotorIO createIO(
-			MotorSubsystemConfiguration configuration,
-			MotorConstants motorConstants,
-			TalonFX motor) {
-		if (RunMode.isSim()) {
-			return new SimTalonFXIO(configuration, motorConstants, motor);
-		} else {
-			return new TalonFXIO(configuration, motorConstants, motor);
-		}
-	}
-
-	public static MotorIO buildMasterIO(MotorSubsystemConfiguration configuration) {
-		return createIO(
-				configuration,
-				configuration.master,
-				MotorFactory.createTalonFX(configuration.master));
-	}
-
-	public static MotorIO[] buildFollowerIOs(MotorSubsystemConfiguration configuration) {
-		final int followerCount = configuration.slaves.map(a -> a.length).orElse(0);
-
-		// Dont return a interface array brcuse it will cause issues
-		if (followerCount == 0) {
-			if (RunMode.isSim()) {
-				return new SimTalonFXIO[0];
-			} else {
-				return new TalonFXIO[0];
-			}
-		}
-
-		final MotorConstants[] slaves = configuration.slaves.orElseThrow();
-		final TalonFX[] slaveTalons = MotorFactory.createSlaveTalonsAndApplyConfig(slaves, configuration.master);
-
-		MotorIO[] ios = new MotorIO[followerCount];
-		for (int i = 0; i < followerCount; i++) {
-			ios[i] = createIO(configuration, slaves[i], slaveTalons[i]);
-		}
-
-		return ios;
 	}
 
 	public Optional<MechanismSim<?, ?, ?>> getMechanismSim() {
