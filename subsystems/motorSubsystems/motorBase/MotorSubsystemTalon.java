@@ -64,7 +64,7 @@ public class MotorSubsystemTalon extends SubsystemBase {
 			this.followerInputs[i] = new MotorIOInputsAutoLogged();
 		}
 
-		if (masterIO instanceof SimTalonFXIO && followerIOs instanceof SimTalonFXIO[]) {
+		if (masterIO instanceof SimTalonFXIO) {
 			// java does'nt like arr casting
 			SimTalonFXIO[] arr = new SimTalonFXIO[this.followerIOs.length];
 			for (int i = 0; i < this.followerIOs.length; i++) {
